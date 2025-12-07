@@ -3,9 +3,8 @@
 Proiect Reinforcement Learning - Agent care învață să joace Geometry Dash
 
 ## 📋 Echipa
-- Membru 1
-- Membru 2  
-- Membru 3
+- Stancu Rares
+- Madalin Ioana
 
 ## 🎯 Descriere
 
