@@ -413,7 +413,6 @@ if __name__ == "__main__":
             print(f"Episode finished! Score: {info['score']}, Distance: {info['distance']:.0f}")
             observation, info = env.reset()
         
-        # Handle pygame events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 env.close()
