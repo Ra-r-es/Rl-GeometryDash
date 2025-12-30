@@ -53,7 +53,7 @@ class QLearningAgent(BaseAgent):
                 return self.action_space.sample()
             return np.argmax(self.q_table[state])
     
-    def update(self, state, action, reward, next_state, done):
+    def update(self, state, action, reward, next_state, done, training=True):
         state = self.discretize_state(state)
         next_state = self.discretize_state(next_state)
         
