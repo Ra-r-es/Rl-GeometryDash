@@ -419,31 +419,3 @@ if __name__ == "__main__":
                 exit()
     
     env.close()
-    
-    # Training with stable-baselines3
-    """
-    from stable_baselines3 import PPO
-    from stable_baselines3.common.env_checker import check_env
-    
-    # Create and check environment
-    env = ImpossibleGameEnv()
-    check_env(env)
-    
-    # Train agent
-    model = PPO("MlpPolicy", env, verbose=1)
-    model.learn(total_timesteps=100000)
-    
-    # Save model
-    model.save("impossible_game_ppo")
-    
-    # Test trained agent
-    env = ImpossibleGameEnv(render_mode="human")
-    obs, info = env.reset()
-    for _ in range(1000):
-        action, _states = model.predict(obs, deterministic=True)
-        obs, reward, terminated, truncated, info = env.step(action)
-        env.render()
-        if terminated or truncated:
-            obs, info = env.reset()
-    env.close()
-    """

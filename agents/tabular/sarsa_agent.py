@@ -49,24 +49,24 @@ class SARSAAgent(BaseAgent):
                 return self.action_space.sample()
             return np.argmax(self.q_table[state])
     
-    def update(self, state, action, reward, next_state, next_action, done):
-        """SARSA update (folosește next_action ales de policy)."""
+    def update(self, state, action, reward, next_state, next_action, done, training=True):
+        """SARSA update (uses next_action from policy - on-policy)."""
         state = self.discretize_state(state)
         next_state = self.discretize_state(next_state)
-        
+
         current_q = self.get_q_value(state, action)
-        
+
         if done:
             target_q = reward
         else:
             next_q = self.get_q_value(next_state, next_action)
             target_q = reward + self.gamma * next_q
-        
+
         if state not in self.q_table:
             self.q_table[state] = np.zeros(self.action_space.n)
-        
+
         self.q_table[state][action] += self.lr * (target_q - current_q)
-        
+
         if training:
             self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
     
