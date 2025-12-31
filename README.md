@@ -417,11 +417,5 @@ Comparatie directa cu aceiasi hiperparametri.
 ---
 
 ## Autori
-
-Proiect realizat pentru cursul de **Reinforcement Learning** (2025-2026).
-
----
-
-## Licenta
-
-Acest proiect este destinat scopurilor educationale.
+Andrei Madalin Ioana
+Stancu Rares
