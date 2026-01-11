@@ -1,4 +1,4 @@
-# Reinforcement Learning - Geometry Dash Agent
+# Reinforcement Learning Geometry Dash Agent
 
 Un proiect de Reinforcement Learning care antreneaza agenti inteligenti pentru a juca un joc similar cu Geometry Dash/The Impossible Game.
 
