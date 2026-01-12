@@ -1,0 +1,19 @@
+﻿# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Editor directories
+.vscode/
+.idea/
+
+# Results (optional - remove if you want to commit models)
+results/models/*.pth
+results/logs/*.npy
+results/plots/*.png

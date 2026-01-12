@@ -1,117 +1,44 @@
 """
 Reinforcement Learning Geometry Dash - Main Script
-
-This script orchestrates training, evaluation, and comparison of all RL agents.
-Usage:
-    python main.py --play                # Play the game manually
-    python main.py --train all           # Train all agents
-    python main.py --train q_learning    # Train specific agent
-    python main.py --evaluate            # Evaluate all trained agents
-    python main.py --compare             # Compare agents and generate plots
-    python main.py --experiments         # Run hyperparameter experiments
-    python main.py --demo <agent>        # Watch trained agent play
-    python main.py --full                # Run complete pipeline
 """
 
 import argparse
 import os
 import sys
+import pygame  # Necesită import pentru detectarea tastelor
 from datetime import datetime
 
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# ATENȚIE: Import corect din folderul environment
+from environment.wrappers import FrameSkipWrapper, FrameStackWrapper, NormalizeObservation, RewardShapingWrapper
 
 def ensure_directories():
-    """Create necessary directories."""
     dirs = ['results/models', 'results/logs', 'results/plots', 'results/experiments']
     for d in dirs:
         os.makedirs(d, exist_ok=True)
 
-
 def train_agent(agent_type):
-    """Train a specific agent."""
-    if agent_type == 'q_learning':
-        from training.train_q_learning import train_q_learning
-        print("\n" + "="*60)
-        print("TRAINING Q-LEARNING AGENT")
-        print("="*60)
-        train_q_learning()
-
-    elif agent_type == 'sarsa':
-        from training.train_sarsa import train_sarsa
-        print("\n" + "="*60)
-        print("TRAINING SARSA AGENT")
-        print("="*60)
-        train_sarsa()
-
-    elif agent_type == 'dqn':
+    if agent_type == 'dqn':
         from training.train_dqn import train_dqn
         print("\n" + "="*60)
-        print("TRAINING DQN AGENT")
+        print("TRAINING DQN AGENT (Precision Mode)")
         print("="*60)
         train_dqn()
-
     elif agent_type == 'ppo':
         from training.train_ppo import train_ppo
-        print("\n" + "="*60)
-        print("TRAINING PPO AGENT")
-        print("="*60)
         train_ppo()
-
     elif agent_type == 'all':
-        print("\n" + "="*60)
-        print("TRAINING ALL AGENTS")
-        print("="*60)
-        print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-
-        train_agent('q_learning')
-        train_agent('sarsa')
         train_agent('dqn')
         train_agent('ppo')
-
-        print(f"\nCompleted: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-
     else:
-        print(f"Unknown agent type: {agent_type}")
-        print("Available: q_learning, sarsa, dqn, ppo, all")
-
-
-def evaluate_agents():
-    """Evaluate all trained agents."""
-    from evaluation.evaluate import main as evaluate_main
-    print("\n" + "="*60)
-    print("EVALUATING ALL AGENTS")
-    print("="*60)
-    evaluate_main()
-
-
-def compare_agents():
-    """Compare all agents and generate visualizations."""
-    from evaluation.compare_agents import compare_agents as compare_main
-    print("\n" + "="*60)
-    print("COMPARING ALL AGENTS")
-    print("="*60)
-    compare_main()
-
+        print(f"Agent {agent_type} not implemented in this quick-fix.")
 
 def plot_results():
-    """Generate training curve plots."""
     from analysis.plot_results import plot_training_curves
-    print("\n" + "="*60)
-    print("GENERATING TRAINING PLOTS")
-    print("="*60)
     plot_training_curves()
 
-
-def run_experiments():
-    """Run hyperparameter tuning experiments."""
-    from experiments.hyperparameter_tuning import run_all_experiments
-    print("\n" + "="*60)
-    print("RUNNING HYPERPARAMETER EXPERIMENTS")
-    print("="*60)
-    run_all_experiments()
-
-
 def demo_agent(agent_type):
-    """Watch a trained agent play the game."""
     from environment import ImpossibleGameEnv
 
     print(f"\n" + "="*60)
@@ -120,175 +47,145 @@ def demo_agent(agent_type):
 
     env = ImpossibleGameEnv(render_mode="human", max_steps=10000)
 
-    if agent_type == 'q_learning':
-        from agents.tabular.q_learning_agent import QLearningAgent
-        agent = QLearningAgent(env.action_space, env.observation_space)
-        model_path = 'results/models/q_learning_agent.pkl'
-
-    elif agent_type == 'sarsa':
-        from agents.tabular.sarsa_agent import SARSAAgent
-        agent = SARSAAgent(env.action_space, env.observation_space)
-        model_path = 'results/models/sarsa_agent.pkl'
-
-    elif agent_type == 'dqn':
+    if agent_type == 'dqn':
         from agents.deep.dqn_agent import DQNAgent
+        
+        print("Applying DQN Wrappers (Skip=2, Stack=4)...")
+        # FIX: Același skip ca la antrenament!
+        env = FrameSkipWrapper(env, skip=2) 
+        env = FrameStackWrapper(env, n_frames=4)
+        env = NormalizeObservation(env)
+        
         agent = DQNAgent(env.action_space, env.observation_space)
-        model_path = 'results/models/dqn_agent.pth'
+        model_path = 'results/models/dqn_agent_best.pth'
+        if not os.path.exists(model_path):
+             model_path = 'results/models/dqn_agent.pth'
 
     elif agent_type == 'ppo':
         from agents.policy.ppo_agent import PPOAgent
+        from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+        env.close() 
+        env = DummyVecEnv([lambda: ImpossibleGameEnv(render_mode="human")])
+        stats_path = 'results/models/vec_normalize.pkl'
+        if os.path.exists(stats_path):
+            env = VecNormalize.load(stats_path, env)
+            env.training = False 
+            env.norm_reward = False
         agent = PPOAgent(env)
         model_path = 'results/models/ppo_agent.zip'
-
     else:
-        print(f"Unknown agent: {agent_type}")
-        env.close()
+        print("Unknown agent")
         return
 
-    if not os.path.exists(model_path.replace('.zip', '.zip') if '.zip' in model_path else model_path):
-        print(f"Model not found: {model_path}")
-        print("Train the agent first!")
-        env.close()
+    try:
+        if agent_type == 'ppo': agent.load(model_path)
+        else: agent.load(model_path)
+        print(f"Loaded: {model_path}")
+    except:
+        print("Model not found. Train first.")
         return
-
-    agent.load(model_path.replace('.zip', '') if agent_type == 'ppo' else model_path)
-    print(f"Loaded model from: {model_path}")
-    print("Press Ctrl+C to exit\n")
 
     try:
         episodes = 0
         while True:
-            obs, info = env.reset()
+            obs_data = env.reset()
+            if agent_type == 'ppo': obs = obs_data
+            elif isinstance(obs_data, tuple): obs = obs_data[0]
+            else: obs = obs_data
+
             done = False
             total_reward = 0
-
+            
             while not done:
                 action = agent.select_action(obs, training=False)
-                obs, reward, terminated, truncated, info = env.step(action)
-                done = terminated or truncated
-                total_reward += reward
-                env.render()
 
+                if agent_type == 'ppo':
+                    obs, reward, done_array, info_array = env.step([action])
+                    done = done_array[0]
+                    reward = reward[0]
+                    info = info_array[0]
+                    env.render() 
+                else:
+                    step_result = env.step(action)
+                    if len(step_result) == 5:
+                        obs, reward, terminated, truncated, info = step_result
+                        done = terminated or truncated
+                    else:
+                        obs, reward, done, info = step_result
+                    env.render()
+
+                total_reward += reward
+            
             episodes += 1
-            print(f"Episode {episodes}: Score = {info['score']}, Reward = {total_reward:.0f}")
+            score = info.get('score', 0) if isinstance(info, dict) else 0
+            print(f"Episode {episodes}: Score = {score}, Reward = {total_reward:.2f}")
 
     except KeyboardInterrupt:
         print("\nDemo ended.")
-
-    env.close()
-
+    finally:
+        env.close()
 
 def play_game():
-    """Play the game manually with keyboard controls."""
-    from play_game import play_game as play
-    play()
+    """Permite utilizatorului să joace manual."""
+    from environment import ImpossibleGameEnv
+    
+    print("\n" + "="*60)
+    print("MANUAL PLAY MODE")
+    print("Controls: SPACE, UP, or W to Jump")
+    print("="*60)
 
+    # Pentru joc manual NU folosim wrappers (vrem 60 FPS fluid, nu frame skip)
+    env = ImpossibleGameEnv(render_mode="human", max_steps=10000)
+    env.reset()
 
-def run_full_pipeline():
-    """Run the complete training and evaluation pipeline."""
-    print("\n" + "="*70)
-    print("FULL PIPELINE: RL Geometry Dash")
-    print("="*70)
-    print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    try:
+        running = True
+        while running:
+            # 1. Gestionare evenimente Pygame (inclusiv X de la fereastră)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
 
-    # Train all agents
-    train_agent('all')
-
-    # Generate training plots
-    plot_results()
-
-    # Evaluate all agents
-    evaluate_agents()
-
-    # Compare agents
-    compare_agents()
-
-    print("\n" + "="*70)
-    print("PIPELINE COMPLETE")
-    print("="*70)
-    print(f"Finished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("\nGenerated files:")
-    print("  - results/models/          (trained models)")
-    print("  - results/logs/            (training metrics)")
-    print("  - results/plots/           (visualizations)")
-    print("  - results/comparison_table.csv")
-    print("  - results/detailed_comparison.csv")
-
+            # 2. Input manual
+            keys = pygame.key.get_pressed()
+            action = 0
+            if keys[pygame.K_SPACE] or keys[pygame.K_UP] or keys[pygame.K_w]:
+                action = 1
+            
+            # 3. Step
+            obs, reward, terminated, truncated, info = env.step(action)
+            env.render()
+            
+            # 4. Reset la moarte
+            if terminated or truncated:
+                print(f"CRASH! Score: {info.get('score', 0)}")
+                env.reset()
+                
+    except KeyboardInterrupt:
+        print("\nPlay ended.")
+    finally:
+        env.close()
 
 def main():
-    parser = argparse.ArgumentParser(
-        description='RL Geometry Dash - Train and evaluate reinforcement learning agents',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  python main.py --play                Play the game manually (SPACE to jump)
-  python main.py --train all           Train all agents
-  python main.py --train dqn           Train only DQN agent
-  python main.py --evaluate            Evaluate all trained agents
-  python main.py --compare             Compare agents with visualizations
-  python main.py --plots               Generate training curve plots
-  python main.py --experiments         Run hyperparameter tuning
-  python main.py --demo ppo            Watch PPO agent play
-  python main.py --full                Run complete pipeline
-
-Available agents: q_learning, sarsa, dqn, ppo, all
-        """
-    )
-
-    parser.add_argument('--play', action='store_true',
-                        help='Play the game manually with keyboard (SPACE to jump)')
-    parser.add_argument('--train', type=str, metavar='AGENT',
-                        help='Train agent(s): q_learning, sarsa, dqn, ppo, or all')
-    parser.add_argument('--evaluate', action='store_true',
-                        help='Evaluate all trained agents')
-    parser.add_argument('--compare', action='store_true',
-                        help='Compare agents and generate comparison plots')
-    parser.add_argument('--plots', action='store_true',
-                        help='Generate training curve plots')
-    parser.add_argument('--experiments', action='store_true',
-                        help='Run hyperparameter tuning experiments')
-    parser.add_argument('--demo', type=str, metavar='AGENT',
-                        help='Demo a trained agent: q_learning, sarsa, dqn, ppo')
-    parser.add_argument('--full', action='store_true',
-                        help='Run full pipeline: train all, evaluate, compare')
-
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--train', type=str, help='Train agent (dqn, ppo)')
+    parser.add_argument('--demo', type=str, help='Demo agent (dqn, ppo)')
+    parser.add_argument('--play', action='store_true', help='Play manually')
+    parser.add_argument('--plots', action='store_true', help='Generate plots')
     args = parser.parse_args()
-
-    # Check if any argument was provided
-    if not any(vars(args).values()):
-        parser.print_help()
-        print("\n" + "-"*60)
-        print("Quick start: python main.py --full")
-        print("-"*60)
-        return
 
     ensure_directories()
 
     if args.play:
         play_game()
-        return
-
-    if args.train:
+    elif args.train: 
         train_agent(args.train.lower())
-
-    if args.evaluate:
-        evaluate_agents()
-
-    if args.compare:
-        compare_agents()
-
-    if args.plots:
-        plot_results()
-
-    if args.experiments:
-        run_experiments()
-
-    if args.demo:
+    elif args.demo: 
         demo_agent(args.demo.lower())
-
-    if args.full:
-        run_full_pipeline()
-
+    elif args.plots: 
+        plot_results()
+    else:
+        parser.print_help()
 
 if __name__ == "__main__":
     main()
